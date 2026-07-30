@@ -111,9 +111,16 @@ def download_media(url: str, formatId: str, title: str):
     output_filename = f"{clean_title}.mp4"
     output_path = os.path.join("/tmp", output_filename) # Use temporary folder
 
-    # Step 1: Try downloading the exact format requested by the user dropdown list
+        # Set the video format string option with standard slash fallbacks
+    format_selector = f"{formatId}+bestaudio/bestvideo+bestaudio/best"
+    
+    # If the user selected an option that says 'Audio Only' or custom audio codes
+    if formatId == "Audio Only" or "audio" in formatId.lower():
+        format_selector = 'bestaudio/best'
+        output_filename = f"{clean_title}.mp3"
+
     ydl_opts = {
-        'format': f"{formatId}+bestaudio/best/best",
+        'format': format_selector,
         'merge_output_format': 'mp4',
         'outtmpl': os.path.join("/tmp", f"{clean_title}.%(ext)s"),
         'quiet': True,
@@ -123,16 +130,11 @@ def download_media(url: str, formatId: str, title: str):
     }
 
 
+
     if os.path.exists(COOKIES_PATH):
         ydl_opts['cookiefile'] = COOKIES_PATH
 
-    # If the user selected an option that says 'Audio Only', override format parameter
-    if formatId == "Audio Only" or "audio" in formatId.lower():
-        ydl_opts['format'] = 'bestaudio/best'
-        output_filename = f"{clean_title}.mp3"
-        ydl_opts['outtmpl'] = os.path.join("/tmp", f"{clean_title}.%(ext)s")
-
-    try:
+       try:
         with YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
     except Exception as first_error:
