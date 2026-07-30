@@ -28,8 +28,9 @@
             <p id="statusText" class="text-sm font-medium text-slate-300"></p>
         </div>
     </div>
-    <script>
+       <script>
         async function processDownload(mode) {
+            // Clean up the URL input cleanly
             const inputUrl = document.getElementById('urlInput').value.trim();
             const videoBtn = document.getElementById('videoBtn');
             const audioBtn = document.getElementById('audioBtn');
@@ -41,27 +42,23 @@
             videoBtn.disabled = true;
             audioBtn.disabled = true;
             statusContainer.classList.remove('hidden');
-            statusText.innerText = "Routing safely through CORS proxy matrix...";
+            statusText.innerText = "Processing media parameters through secure CORS tunnel...";
 
             try {
-                // PROXY FIX: Forces the browser to accept cross-origin requests
-                const proxyPrefix = "https://corsproxy.io?";
+                // Secure free CORS proxy prefix layer
+                const proxyPrefix = "https://corsproxy.io/?";
                 const targetApi = "https://cobalt.tools";
                 
+                // REWRITTEN PAYLOAD SCHEMA: Maps exactly to Cobalt's production requirements
                 const requestPayload = {
-                    url: inputUrl
+                    url: inputUrl,
+                    videoQuality: '720',               // String representation of resolution height
+                    downloadMode: mode === 'audio' ? 'audio' : 'video', // 'video' or 'audio'
+                    audioFormat: 'mp3',                // Default audio fallback container
+                    audioBitrate: '320'                // Premium audio bitrate allocation
                 };
 
-                if (mode === 'audio') {
-                    requestPayload.isAudioOnly = true;
-                    requestPayload.audioFormat = 'mp3';
-                    requestPayload.audioBitrate = '320';
-                } else {
-                    requestPayload.vQuality = '720'; 
-                    requestPayload.isCodecM4A = true; 
-                }
-
-                // Combine the proxy prefix with the actual api target
+                // Fetch data cleanly by encoding the combined target address
                 const response = await fetch(proxyPrefix + encodeURIComponent(targetApi), {
                     method: 'POST',
                     headers: {
@@ -77,13 +74,15 @@
 
                 const data = await response.json();
 
-                if (data.text || data.status === 'error') {
+                // If the engine encounters a media exception, handle it safely
+                if (data.status === 'error' || data.text) {
                     throw new Error(data.text || 'The infrastructure cluster rejected processing this media link.');
                 }
 
                 if (data.url) {
                     statusText.innerText = "Processing complete! Transferring file...";
                     
+                    // Create a hidden anchor tab element to safely execute the browser download action
                     const downloadLink = document.createElement('a');
                     downloadLink.href = data.url;
                     downloadLink.target = '_blank';
@@ -92,18 +91,20 @@
                     downloadLink.click();
                     document.body.removeChild(downloadLink);
                 } else {
-                    throw new Error('Processing payload succeeded but download url was missing.');
+                    throw new Error('Processing payload succeeded but download URL was missing.');
                 }
 
             } catch (err) {
                 console.error(err);
-                alert('Connection Log Update: ' + err.message + '\n\nTip: Make sure you aren\'t using an aggressive ad-blocker extension that prevents background fetching.');
+                alert('Connection Notification: ' + err.message + '\n\nTip: Double-check that your video link is public and accessible.');
             } finally {
+                // Restore button interaction controls
                 videoBtn.disabled = false;
                 audioBtn.disabled = false;
                 statusContainer.classList.add('hidden');
             }
         }
     </script>
+
 </body>
 </html>
