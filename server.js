@@ -1,45 +1,18 @@
 const express = require('express');
 const cors = require('cors');
 const YTDlpWrap = require('yt-dlp-wrap').default;
-const path = require('path');
-const fs = require('fs');
-const { execSync } = require('child_process');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const ytDlpPath = path.join(__dirname, 'yt-dlp');
-let ytDlpWrap;
+// Point directly to the stable system-wide Linux path we built in the Dockerfile
+const ytDlpWrap = new YTDlpWrap('/usr/local/bin/yt-dlp');
 
-// Upgraded Initializer to handle Linux Server permissions
-async function initYtdlp() {
-    try {
-        if (!fs.existsSync(ytDlpPath)) {
-            console.log('Downloading latest yt-dlp binary from GitHub...');
-            await YTDlpWrap.downloadFromGithub(ytDlpPath);
-            console.log('yt-dlp downloaded successfully!');
-        }
-        
-        // CRUCIAL FOR LINUX/RENDER: Give the file execution permissions
-        if (process.platform !== 'win32') {
-            console.log('Applying Linux execution permissions to yt-dlp...');
-            execSync(`chmod +x "${ytDlpPath}"`);
-        }
-
-        ytDlpWrap = new YTDlpWrap(ytDlpPath);
-        console.log('yt-dlp engine successfully armed and ready.');
-    } catch (error) {
-        console.error('Initialization error during core setup:', error.message);
-    }
-}
-initYtdlp();
-
-// Endpoint 1: Get available qualities and info
+// Endpoint 1: Fetch metadata qualities
 app.post('/api/info', async (req, res) => {
     const { url } = req.body;
     if (!url) return res.status(400).json({ error: 'URL is required' });
-    if (!ytDlpWrap) return res.status(503).json({ error: 'Server is still booting up the engine. Please refresh in 10 seconds.' });
 
     try {
         let metadata = await ytDlpWrap.getVideoInfo(url);
@@ -69,7 +42,7 @@ app.post('/api/info', async (req, res) => {
     }
 });
 
-// Endpoint 2: Stream the file download
+// Endpoint 2: Direct Stream Download
 app.get('/api/download', (req, res) => {
     const { url, formatId, title } = req.query;
     if (!url || !formatId) return res.status(400).send('Missing parameters');
@@ -92,4 +65,4 @@ app.get('/api/download', (req, res) => {
 app.use(express.static('public'));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running smoothly on port ${PORT}`));
