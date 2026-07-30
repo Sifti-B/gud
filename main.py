@@ -106,8 +106,9 @@ def download_media(url: str, formatId: str, title: str):
     output_filename = f"{clean_title}.mp4"
     output_path = os.path.join("/tmp", output_filename) # Use temporary folder
 
+    # Step 1: Try downloading the exact format requested by the user dropdown list
     ydl_opts = {
-        'format': f"{formatId}+bestaudio/best" if formatId != "best" else "bestvideo+bestaudio/best",
+        'format': f"{formatId}+bestaudio/best" if formatId not in ["best", "Audio Only"] else "bestvideo+bestaudio/best",
         'merge_output_format': 'mp4',
         'outtmpl': os.path.join("/tmp", f"{clean_title}.%(ext)s"),
         'quiet': True,
@@ -117,22 +118,49 @@ def download_media(url: str, formatId: str, title: str):
         'cookiefile': 'cookies.txt'
     }
 
+    # If the user selected an option that says 'Audio Only', override format parameter
+    if formatId == "Audio Only" or "audio" in formatId.lower():
+        ydl_opts['format'] = 'bestaudio/best'
+        output_filename = f"{clean_title}.mp3"
+        ydl_opts['outtmpl'] = os.path.join("/tmp", f"{clean_title}.%(ext)s")
 
     try:
-        # Download file to temporary directory
         with YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
+    except Exception as first_error:
+        print(f"Primary format download failed, trying robust safety fallback... Error: {first_error}")
+        
+        # Step 2: IRONCLAD FALLBACK - If the custom format combination fails,
+        # reset options and fetch the standard pre-merged absolute best quality available.
+        ydl_opts['format'] = 'best'
+        
+        try:
+            with YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
+        except Exception as fallback_error:
+            raise HTTPException(status_code=500, detail=f"Download execution error: {str(fallback_error)}")
             
-        if not os.path.exists(output_path):
-            raise HTTPException(status_code=500, detail="File processing failed on server.")
+    # Locate the final processed file in the temporary folder
+    # yt-dlp might append slightly different extensions depending on extraction (mp4, mkv, webm)
+    actual_file = None
+    for ext in ['mp4', 'mkv', 'webm', 'mp3', 'm4a']:
+        check_path = os.path.join("/tmp", f"{clean_title}.{ext}")
+        if os.path.exists(check_path):
+            actual_file = check_path
+            output_filename = f"{clean_title}.{ext}"
+            break
             
-        # Stream file directly as an attachment to trigger browser download
-        return FileResponse(
-            path=output_path, 
-            filename=output_filename, 
-            media_type="video/mp4",
-            background=None # File can be safely cleaned up later or handled automatically
-        )
+    if not actual_file or not os.path.exists(actual_file):
+        raise HTTPException(status_code=500, detail="File processing completed but could not be located on server filesystem.")
+        
+    # Stream file directly as an attachment to trigger browser download
+    return FileResponse(
+        path=actual_file, 
+        filename=output_filename, 
+        media_type="application/octet-stream",
+        background=None
+    )
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Download execution error: {str(e)}")
 
