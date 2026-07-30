@@ -28,9 +28,8 @@
             <p id="statusText" class="text-sm font-medium text-slate-300"></p>
         </div>
     </div>
-       <script>
+           <script>
         async function processDownload(mode) {
-            // Clean up the URL input cleanly
             const inputUrl = document.getElementById('urlInput').value.trim();
             const videoBtn = document.getElementById('videoBtn');
             const audioBtn = document.getElementById('audioBtn');
@@ -42,22 +41,19 @@
             videoBtn.disabled = true;
             audioBtn.disabled = true;
             statusContainer.classList.remove('hidden');
-            statusText.innerText = "Processing media parameters through secure CORS tunnel...";
+            statusText.innerText = "Processing streaming container parameters directly through your API instance...";
 
             try {
-                // Point directly to your active live Render backend API instance
-                const targetApi = "https://my-private-api-zrig.onrender.com"; // <-- ENSURE THIS IS YOUR ACTUAL RENDER URL!
+                // REPLACE THIS WITH YOUR ACTUAL LIVE COBALT RENDER LINK!
+                const targetApi = "https://my-private-api-zrig.onrender.com"; 
                 
-                // Formatted payload data properties mapping exactly to Cobalt 10 specification guidelines
+                // LEAN PAYLOAD LOGIC: Drops format tags to allow the engine to extract media without schema errors
                 const requestPayload = {
                     url: inputUrl,
-                    videoQuality: '720',               
-                    downloadMode: mode === 'audio' ? 'audio' : 'video', 
-                    audioFormat: 'mp3',                
-                    audioBitrate: '320'                
+                    videoQuality: '720', // Standard high-definition container fallback
+                    downloadMode: mode === 'audio' ? 'audio' : 'video'
                 };
 
-                // FIXED FETCH PIPELINE: Send request straight to your API without the corsproxy prefix
                 const response = await fetch(targetApi, {
                     method: 'POST',
                     headers: {
@@ -73,7 +69,6 @@
 
                 const data = await response.json();
 
-                // Handle structural error codes safely
                 if (data.status === 'error' || data.text) {
                     throw new Error(data.text || 'The infrastructure cluster rejected processing this media link.');
                 }
@@ -89,20 +84,20 @@
                     downloadLink.click();
                     document.body.removeChild(downloadLink);
                 } else {
-                    throw new Error('Processing payload succeeded but download URL was missing.');
+                    throw new Error('Valid processing payload generated but media link container was missing.');
                 }
 
             } catch (err) {
                 console.error(err);
-                alert('Connection Notification: ' + err.message + '\n\nTip: Double-check that your video link is public and accessible.');
+                alert('Downloader Feedback Log: ' + err.message + '\n\nTip: If you see old text, please clear your browser history or use Incognito mode!');
             } finally {
-                // Restore button interaction controls
                 videoBtn.disabled = false;
                 audioBtn.disabled = false;
                 statusContainer.classList.add('hidden');
             }
         }
     </script>
+
 
 </body>
 </html>
