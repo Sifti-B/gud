@@ -45,27 +45,43 @@ def get_video_info(request: UrlRequest):
         if not info:
             raise HTTPException(status_code=400, detail="Could not extract video data.")
             
-        # Parse available resolutions cleanly with type safety fallbacks
         formats_list = []
         raw_formats = info.get('formats', []) or []
         
+        # Keep track of resolutions we have already added to avoid duplicates
+        seen_resolutions = set()
+        
         for f in raw_formats:
+            # Gather stream profiles safely
             vcodec = f.get('vcodec', 'none') or 'none'
             acodec = f.get('acodec', 'none') or 'none'
+            format_id = str(f.get('format_id', ''))
             
-            if vcodec != 'none' or acodec != 'none':
-                res = f.get('resolution') or f"{f.get('width','?') or '?'}x{f.get('height','?') or '?'}"
-                if vcodec == 'none':
-                    res = "Audio Only"
+            # Determine text resolution display string
+            height = f.get('height')
+            if vcodec == 'none' or not height:
+                res_display = "Audio Only"
+            else:
+                res_display = f"{height}p"
+                
+            # Create a unique layout label
+            ext = str(f.get('ext', 'mp4'))
+            note = str(f.get('format_note', '') or '')
+            unique_key = f"{res_display}_{ext}"
+            
+            # Add all audio formats, but filter videos so the dropdown isn't 100 items long
+            if res_display == "Audio Only" or unique_key not in seen_resolutions:
+                if res_display != "Audio Only":
+                    seen_resolutions.add(unique_key)
                     
                 formats_list.append({
-                    "formatId": str(f.get('format_id', 'best')),
-                    "resolution": str(res),
-                    "ext": str(f.get('ext', 'mp4')),
-                    "note": str(f.get('format_note', '') or '')
+                    "formatId": format_id or "best",
+                    "resolution": res_display,
+                    "ext": ext,
+                    "note": note
                 })
                 
-        # Safety net backup if raw matrix list parser misses elements
+        # Ironclad safety net: If listing fails, fall back to default profile engine
         if not formats_list:
             formats_list.append({
                 "formatId": "best",
@@ -81,8 +97,8 @@ def get_video_info(request: UrlRequest):
             "formats": formats_list
         }
     except Exception as e:
-        # Pass direct raw diagnostic data straight over to the browser window
         raise HTTPException(status_code=500, detail=f"Extractor message: {str(e)}")
+
 
 
 @app.get("/api/download")
