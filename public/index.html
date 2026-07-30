@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Cloud Downloader</title>
+      <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+      <style type="text/tailwindcss">
+    @theme {
+      --color-clifford: #da373d;
+    }
+     </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex items-center justify-center p-4">
+    <div class="bg-slate-800 p-8 rounded-2xl shadow-xl w-full max-w-xl border border-slate-700">
+        <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">Media Downloader</h1>
+        
+        <div class="space-y-4">
+            <input type="text" id="urlInput" placeholder="Paste video link here..." class="w-full p-4 rounded-lg bg-slate-700 border border-slate-600 focus:outline-none focus:border-blue-500">
+            <button onclick="fetchVideoInfo()" id="fetchBtn" class="w-full bg-blue-600 hover:bg-blue-500 font-semibold p-4 rounded-lg transition">Fetch Available Formats</button>
+        </div>
+
+        <!-- Result Container Hidden by Default -->
+        <div id="resultContainer" class="mt-8 hidden space-y-4">
+            <div class="flex gap-4 items-center bg-slate-700/50 p-4 rounded-xl border border-slate-600">
+                <img id="thumb" class="w-28 rounded-lg shadow" src="" alt="Thumbnail">
+                <div>
+                    <h3 id="videoTitle" class="font-bold line-clamp-2"></h3>
+                    <p id="duration" class="text-sm text-slate-400 mt-1"></p>
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-slate-400 mb-2">Select Quality / Format:</label>
+                <select id="formatSelect" class="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 focus:outline-none"></select>
+            </div>
+            
+            <button onclick="startDownload()" class="w-full bg-emerald-600 hover:bg-emerald-500 font-semibold p-4 rounded-lg transition">Download Now</button>
+        </div>
+    </div>
+
+    <script>
+        let currentUrl = '';
+        let currentTitle = '';
+
+        async function fetchVideoInfo() {
+            const url = document.getElementById('urlInput').value;
+            const btn = document.getElementById('fetchBtn');
+            if(!url) return alert('Please enter a URL');
+
+            btn.disabled = true;
+            btn.innerText = 'Fetching...';
+
+            try {
+                const response = await fetch('/api/info', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const data = await response.json();
+                
+                if(data.error) throw new Error(data.error);
+
+                currentUrl = url;
+                currentTitle = data.title;
+
+                document.getElementById('thumb').src = data.thumbnail;
+                document.getElementById('videoTitle').innerText = data.title;
+                document.getElementById('duration').innerText = `Duration: ${data.duration}`;
+
+                const select = document.getElementById('formatSelect');
+                select.innerHTML = '';
+                data.formats.forEach(f => {
+                    const opt = document.createElement('option');
+                    opt.value = f.formatId;
+                    opt.innerText = `${f.resolution} (${f.ext}) - ${f.note}`;
+                    select.appendChild(opt);
+                });
+
+                document.getElementById('resultContainer').classList.remove('hidden');
+            } catch (err) {
+                alert('Error loading formats: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Fetch Available Formats';
+            }
+        }
+
+        function startDownload() {
+            const formatId = document.getElementById('formatSelect').value;
+            const downloadUrl = `/api/download?url=${encodeURIComponent(currentUrl)}&formatId=${formatId}&title=${encodeURIComponent(currentTitle)}`;
+            window.location.href = downloadUrl;
+        }
+    </script>
+</body>
+</html>
