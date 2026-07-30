@@ -110,8 +110,15 @@ def download_media(url: str, formatId: str, title: str):
     clean_title = safe_name(title or "video")
     output_filename = f"{clean_title}.mp4"
     
-    # Set the primary video format configuration
-    format_selector = f"{formatId}+bestaudio/best"
+    # Strip any trailing 'p' from the formatId if it represents a resolution height (e.g. '720p' -> '720')
+    clean_format = formatId.replace('p', '')
+    
+    if formatId in ["best", "Audio Only"] or not clean_format.isdigit():
+        format_selector = f"{formatId}+bestaudio/best" if formatId != "Audio Only" else "bestaudio/best"
+    else:
+        # Ironclad yt-dlp format rule for specific resolutions
+        format_selector = f"bestvideo[height<={clean_format}]+bestaudio/best"
+
     
     # If the user selected an option that says 'Audio Only', override format parameter
     if formatId == "Audio Only" or "audio" in formatId.lower():
