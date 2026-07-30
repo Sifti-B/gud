@@ -23,14 +23,12 @@
                 <button onclick="processDownload('audio')" id="audioBtn" class="w-1/2 bg-emerald-600 hover:bg-emerald-500 font-semibold p-4 rounded-lg transition">Download MP3</button>
             </div>
         </div>
-
         <!-- Processing Status Box -->
         <div id="statusContainer" class="mt-6 hidden p-4 rounded-lg bg-slate-700/50 border border-slate-600 text-center animate-pulse">
             <p id="statusText" class="text-sm font-medium text-slate-300"></p>
         </div>
     </div>
-
-    <script>
+        <script>
         async function processDownload(mode) {
             const inputUrl = document.getElementById('urlInput').value.trim();
             const videoBtn = document.getElementById('videoBtn');
@@ -43,40 +41,49 @@
             videoBtn.disabled = true;
             audioBtn.disabled = true;
             statusContainer.classList.remove('hidden');
-            statusText.innerText = "Processing media stream parameters via open API cluster...";
+            statusText.innerText = "Processing streaming container fields on API cluster...";
 
             try {
-                // THE CRUCIAL ADJUSTMENT: Points to the open backend processing cluster endpoint
-                const targetApi = "https://api.cobalt.tools/";
+                const targetApi = "https://cobalt.tools";
                 
+                // OFFICIAL SCHEMA MATCHING: Formatted to align exactly with Cobalt production parameters
+                const requestPayload = {
+                    url: inputUrl
+                };
+
+                if (mode === 'audio') {
+                    requestPayload.isAudioOnly = true;
+                    requestPayload.audioFormat = 'mp3';
+                    requestPayload.audioBitrate = '320';
+                } else {
+                    requestPayload.vQuality = '720'; // Standard high-definition parameter filter
+                    requestPayload.isCodecM4A = true; // Forces standard container compatibility
+                }
+
                 const response = await fetch(targetApi, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify({
-                        url: inputUrl,
-                        videoQuality: '720', 
-                        downloadMode: mode,   
-                        audioFormat: 'mp3'
-                    })
+                    body: JSON.stringify(requestPayload)
                 });
 
                 if (!response.ok) {
-                    throw new Error(`The central download infrastructure returned an unexpected server code: ${response.status}`);
+                    throw new Error(`The download infrastructure returned an unexpected validation code: ${response.status}`);
                 }
 
                 const data = await response.json();
 
-                if (data.status === 'error') {
+                // Cobalt handles errors by passing an object containing a 'text' element or a specific code
+                if (data.text || data.status == 'error') {
                     throw new Error(data.text || 'The infrastructure cluster rejected processing this media link.');
                 }
 
                 if (data.url) {
-                    statusText.innerText = "Download link ready! Transferring file...";
+                    statusText.innerText = "Processing complete! Transferring file to browser...";
                     
-                    // Create an ephemeral hidden layout anchor tab element to bypass tracking parameters 
+                    // Create an ephemeral hidden anchor tag element to safely execute the download action
                     const downloadLink = document.createElement('a');
                     downloadLink.href = data.url;
                     downloadLink.target = '_blank';
@@ -85,12 +92,12 @@
                     downloadLink.click();
                     document.body.removeChild(downloadLink);
                 } else {
-                    throw new Error('Valid processing payload generated but media link container was empty.');
+                    throw new Error('Valid processing payload generated but media link container was missing.');
                 }
 
             } catch (err) {
                 console.error(err);
-                alert('Downloader Update: ' + err.message + '\n\nTip: The public cluster may experience occasional load blocks. Try resubmitting in a few moments.');
+                alert('Downloader Status Notification: ' + err.message + '\n\nTip: Double check that the copied video link is public and still online!');
             } finally {
                 videoBtn.disabled = false;
                 audioBtn.disabled = false;
@@ -98,7 +105,5 @@
             }
         }
     </script>
-
-
 </body>
 </html>
