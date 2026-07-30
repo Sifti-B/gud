@@ -29,7 +29,7 @@ def safe_name(name: str) -> str:
 
 @app.post("/api/info")
 def get_video_info(request: UrlRequest):
-    """Endpoint 1: Extracts available video resolutions and data."""
+    """Endpoint 1: Extracts available video resolutions and data securely."""
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
@@ -37,55 +37,53 @@ def get_video_info(request: UrlRequest):
         'nocheckcertificate': True,
         'cookiefile': 'cookies.txt'
     }
-
     
     try:
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(request.url, download=False)
             
-        if not info or 'formats' not in info:
-            raise HTTPException(status_code=400, detail="Could not extract video formats.")
+        if not info:
+            raise HTTPException(status_code=400, detail="Could not extract video data.")
             
-        # Parse available resolutions cleanly with safety fallbacks
+        # Parse available resolutions cleanly with type safety fallbacks
         formats_list = []
-        raw_formats = info.get('formats', [])
+        raw_formats = info.get('formats', []) or []
         
         for f in raw_formats:
-            # Gather stream data safely using default string configurations
-            vcodec = f.get('vcodec', 'none')
-            acodec = f.get('acodec', 'none')
+            vcodec = f.get('vcodec', 'none') or 'none'
+            acodec = f.get('acodec', 'none') or 'none'
             
-            # Filter out non-media components safely
             if vcodec != 'none' or acodec != 'none':
                 res = f.get('resolution') or f"{f.get('width','?') or '?'}x{f.get('height','?') or '?'}"
                 if vcodec == 'none':
                     res = "Audio Only"
                     
                 formats_list.append({
-                    "formatId": str(f.get('format_id', '')),
+                    "formatId": str(f.get('format_id', 'best')),
                     "resolution": str(res),
                     "ext": str(f.get('ext', 'mp4')),
-                    "note": str(f.get('format_note', ''))
+                    "note": str(f.get('format_note', '') or '')
                 })
                 
-        # Safety net: If individual formats are blocked, inject a standard master profile
+        # Safety net backup if raw matrix list parser misses elements
         if not formats_list:
             formats_list.append({
                 "formatId": "best",
                 "resolution": "Standard / Best Available Quality",
                 "ext": "mp4",
-                "note": "Default Streaming Track"
+                "note": "Default Video Stream"
             })
                 
         return {
-            "title": info.get('title', 'Video'),
-            "thumbnail": info.get('thumbnail', ''),
-            "duration": info.get('duration_string', '0:00'),
+            "title": str(info.get('title', 'Video')),
+            "thumbnail": str(info.get('thumbnail', '')),
+            "duration": str(info.get('duration_string', '0:00')),
             "formats": formats_list
         }
-
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch metadata: {str(e)}")
+        # Pass direct raw diagnostic data straight over to the browser window
+        raise HTTPException(status_code=500, detail=f"Extractor message: {str(e)}")
+
 
 @app.get("/api/download")
 def download_media(url: str, formatId: str, title: str):
