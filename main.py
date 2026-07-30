@@ -112,8 +112,9 @@ def download_media(url: str, formatId: str, title: str):
     output_path = os.path.join("/tmp", output_filename) # Use temporary folder
 
     # Step 1: Try downloading the exact format requested by the user dropdown list
+    # Step 1: Try downloading the exact format requested by the user dropdown list
     ydl_opts = {
-        'format': f"{formatId}+bestaudio/best" if formatId not in ["best", "Audio Only"] else "bestvideo+bestaudio/best",
+        'format': f"{formatId}+bestaudio/best,bestvideo+bestaudio/best",
         'merge_output_format': 'mp4',
         'outtmpl': os.path.join("/tmp", f"{clean_title}.%(ext)s"),
         'quiet': True,
@@ -121,6 +122,7 @@ def download_media(url: str, formatId: str, title: str):
         'http_headers': {'User-Agent': USER_AGENT},
         'nocheckcertificate': True
     }
+
 
     if os.path.exists(COOKIES_PATH):
         ydl_opts['cookiefile'] = COOKIES_PATH
