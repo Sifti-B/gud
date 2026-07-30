@@ -17,92 +17,77 @@
         
         <div class="space-y-4">
             <input type="text" id="urlInput" placeholder="Paste video link here..." class="w-full p-4 rounded-lg bg-slate-700 border border-slate-600 focus:outline-none focus:border-blue-500">
-            <button onclick="fetchVideoInfo()" id="fetchBtn" class="w-full bg-blue-600 hover:bg-blue-500 font-semibold p-4 rounded-lg transition">Fetch Available Formats</button>
+            
+            <div class="flex gap-4">
+                <button onclick="processDownload('tunnel')" id="videoBtn" class="w-1/2 bg-blue-600 hover:bg-blue-500 font-semibold p-4 rounded-lg transition">Download Video</button>
+                <button onclick="processDownload('audio')" id="audioBtn" class="w-1/2 bg-emerald-600 hover:bg-emerald-500 font-semibold p-4 rounded-lg transition">Download MP3</button>
+            </div>
         </div>
 
-        <!-- Result Container Hidden by Default -->
-        <div id="resultContainer" class="mt-8 hidden space-y-4">
-            <div class="flex gap-4 items-center bg-slate-700/50 p-4 rounded-xl border border-slate-600">
-                <img id="thumb" class="w-28 rounded-lg shadow" src="" alt="Thumbnail">
-                <div>
-                    <h3 id="videoTitle" class="font-bold line-clamp-2"></h3>
-                    <p id="duration" class="text-sm text-slate-400 mt-1"></p>
-                </div>
-            </div>
-            
-            <div>
-                <label class="block text-sm font-medium text-slate-400 mb-2">Select Quality / Format:</label>
-                <select id="formatSelect" class="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 focus:outline-none"></select>
-            </div>
-            
-            <button onclick="startDownload()" class="w-full bg-emerald-600 hover:bg-emerald-500 font-semibold p-4 rounded-lg transition">Download Now</button>
+        <!-- Processing Status Box -->
+        <div id="statusContainer" class="mt-6 hidden p-4 rounded-lg bg-slate-700/50 border border-slate-600 text-center animate-pulse">
+            <p id="statusText" class="text-sm font-medium text-slate-300"></p>
         </div>
     </div>
 
     <script>
-        async function fetchVideoInfo() {
-            const url = document.getElementById('urlInput').value;
-            const btn = document.getElementById('fetchBtn');
-            if(!url) return alert('Please enter a URL');
+        async function processDownload(mode) {
+            const inputUrl = document.getElementById('urlInput').value.strip ? document.getElementById('urlInput').value.strip() : document.getElementById('urlInput').value;
+            const videoBtn = document.getElementById('videoBtn');
+            const audioBtn = document.getElementById('audioBtn');
+            const statusContainer = document.getElementById('statusContainer');
+            const statusText = document.getElementById('statusText');
 
-            btn.disabled = true;
-            btn.innerText = 'Fetching...';
+            if (!inputUrl) return alert('Please paste a valid video URL first!');
+
+            // Lock buttons during download request
+            videoBtn.disabled = true;
+            audioBtn.disabled = true;
+            statusContainer.classList.remove('hidden');
+            statusText.innerText = "Connecting to API cluster & bypassing blocks...";
 
             try {
-                const response = await fetch('/api/info', {
+                // Public open-source API cluster instance wrapper
+                const response = await fetch('https://cobalt.tools', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url })
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        url: inputUrl,
+                        videoQuality: '1080', // Fetches standard high-definition playable container
+                        downloadMode: mode,   // Switchable parameter: 'tunnel' (video) or 'audio' (mp3)
+                        audioFormat: 'mp3'
+                    })
                 });
-                
-                if (!response.ok) {
-                    const errorDetail = await response.json();
-                    throw new Error(errorDetail.detail || 'Server encountered an issue.');
-                }
-                
+
                 const data = await response.json();
-                
-                // Safe extraction fallback if payload returns slightly shifted keys
-                const formats = data.formats || data.Formats || [];
-                const title = data.title || 'Video Title';
-                const thumbnail = data.thumbnail || '';
-                const duration = data.duration || '0:00';
 
-                currentUrl = url;
-                currentTitle = title;
-
-                document.getElementById('thumb').src = thumbnail;
-                document.getElementById('videoTitle').innerText = title;
-                document.getElementById('duration').innerText = `Duration: ${duration}`;
-
-                const select = document.getElementById('formatSelect');
-                select.innerHTML = '';
-                
-                if (formats.length === 0) {
-                    // Fallback option if individual resolution matrix extraction fails
-                    const opt = document.createElement('option');
-                    opt.value = 'best';
-                    opt.innerText = 'Standard / Best Quality Available';
-                    select.appendChild(opt);
-                } else {
-                        formats.forEach(f => {
-                        const opt = document.createElement('option');
-                        opt.value = f.formatId || 'best';
-                        opt.innerText = `${f.resolution || 'Default'} (${f.ext || 'mp4'}) - ${f.note || ''}`;
-                        select.appendChild(opt);
-                    });
-
+                if (data.status === 'error') {
+                    throw new Error(data.text || 'API failed to fetch download link.');
                 }
 
-                document.getElementById('resultContainer').classList.remove('hidden');
+                if (data.url) {
+                    statusText.innerText = "Download link ready! Transferring file...";
+                    // Instantly trigger browser native file download save sequence
+                    window.location.href = data.url;
+                } else if (data.status === 'picker') {
+                    throw new Error('This video requires manual item picker verification.');
+                } else {
+                    throw new Error('Invalid response structure from download cluster.');
+                }
+
             } catch (err) {
-                alert('Connection Notification: ' + err.message);
+                console.error(err);
+                alert('Downloader Notification: ' + err.message);
             } finally {
-                btn.disabled = false;
-                btn.innerText = 'Fetch Available Formats';
+                // Restore interaction controls
+                videoBtn.disabled = false;
+                audioBtn.disabled = false;
+                statusContainer.classList.add('hidden');
             }
         }
-
     </script>
 </body>
 </html>
