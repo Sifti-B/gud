@@ -20,6 +20,9 @@ app.add_middleware(
 # Shared browser disguise to minimize platform automation blocks
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
+# Path where the uploaded cookies file lives inside the server container
+COOKIES_PATH = os.path.join(os.path.dirname(__file__), 'cookies.txt')
+
 class UrlRequest(BaseModel):
     url: str
 
@@ -34,10 +37,13 @@ def get_video_info(request: UrlRequest):
         'quiet': True,
         'no_warnings': True,
         'http_headers': {'User-Agent': USER_AGENT},
-        'nocheckcertificate': True,
-        'cookiefile': 'cookies.txt'
+        'nocheckcertificate': True
     }
     
+    # Append cookies file dynamically if present in the repository root
+    if os.path.exists(COOKIES_PATH):
+        ydl_opts['cookiefile'] = COOKIES_PATH
+
     try:
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(request.url, download=False)
@@ -52,7 +58,6 @@ def get_video_info(request: UrlRequest):
         seen_resolutions = set()
         
         for f in raw_formats:
-            # Gather stream profiles safely
             vcodec = f.get('vcodec', 'none') or 'none'
             acodec = f.get('acodec', 'none') or 'none'
             format_id = str(f.get('format_id', ''))
@@ -69,7 +74,7 @@ def get_video_info(request: UrlRequest):
             note = str(f.get('format_note', '') or '')
             unique_key = f"{res_display}_{ext}"
             
-            # Add all audio formats, but filter videos so the dropdown isn't 100 items long
+            # Add all audio formats, but filter videos so the dropdown list stays clean
             if res_display == "Audio Only" or unique_key not in seen_resolutions:
                 if res_display != "Audio Only":
                     seen_resolutions.add(unique_key)
@@ -81,7 +86,7 @@ def get_video_info(request: UrlRequest):
                     "note": note
                 })
                 
-        # Ironclad safety net: If listing fails, fall back to default profile engine
+        # Safety net backup if raw matrix list parser misses elements
         if not formats_list:
             formats_list.append({
                 "formatId": "best",
@@ -114,9 +119,11 @@ def download_media(url: str, formatId: str, title: str):
         'quiet': True,
         'no_warnings': True,
         'http_headers': {'User-Agent': USER_AGENT},
-        'nocheckcertificate': True,
-        'cookiefile': 'cookies.txt'
+        'nocheckcertificate': True
     }
+
+    if os.path.exists(COOKIES_PATH):
+        ydl_opts['cookiefile'] = COOKIES_PATH
 
     # If the user selected an option that says 'Audio Only', override format parameter
     if formatId == "Audio Only" or "audio" in formatId.lower():
@@ -130,10 +137,8 @@ def download_media(url: str, formatId: str, title: str):
     except Exception as first_error:
         print(f"Primary format download failed, trying robust safety fallback... Error: {first_error}")
         
-        # Step 2: IRONCLAD FALLBACK - If the custom format combination fails,
-        # reset options and fetch the standard pre-merged absolute best quality available.
+        # Step 2: IRONCLAD FALLBACK - Reset parameters and fetch pre-merged absolute best available quality
         ydl_opts['format'] = 'best'
-        
         try:
             with YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
@@ -141,7 +146,6 @@ def download_media(url: str, formatId: str, title: str):
             raise HTTPException(status_code=500, detail=f"Download execution error: {str(fallback_error)}")
             
     # Locate the final processed file in the temporary folder
-    # yt-dlp might append slightly different extensions depending on extraction (mp4, mkv, webm)
     actual_file = None
     for ext in ['mp4', 'mkv', 'webm', 'mp3', 'm4a']:
         check_path = os.path.join("/tmp", f"{clean_title}.{ext}")
@@ -160,9 +164,6 @@ def download_media(url: str, formatId: str, title: str):
         media_type="application/octet-stream",
         background=None
     )
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Download execution error: {str(e)}")
 
 # Mount static frontend interface files
 app.mount("/", StaticFiles(directory="public", html=True), name="static")
