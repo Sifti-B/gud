@@ -8,7 +8,6 @@ app.use(express.json());
 
 const ytDlpWrap = new YTDlpWrap('/usr/local/bin/yt-dlp');
 
-// Common browser disguise string to bypass automated bot detection walls
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 // Endpoint 1: Fetch metadata qualities
@@ -17,12 +16,22 @@ app.post('/api/info', async (req, res) => {
     if (!url) return res.status(400).json({ error: 'URL is required' });
 
     try {
-        // Pass system args to pretend we are an organic desktop browser session
-        let metadata = await ytDlpWrap.getVideoInfo([
+        // Base browser spoofing arguments
+        let args = [
             url,
             '--user-agent', USER_AGENT,
             '--no-check-certificates'
-        ]);
+        ];
+
+        // PROXY IMPLEMENTATION: Check if a proxy is configured on Render
+        if (process.env.PROXY_URL) {
+            console.log(`Routing metadata lookup through proxy: ${process.env.PROXY_URL}`);
+            args.push('--proxy', process.env.PROXY_URL);
+        } else {
+            console.log('Running lookup without proxy (using standard datacenter IP)');
+        }
+
+        let metadata = await ytDlpWrap.getVideoInfo(args);
         
         if (!metadata || !metadata.formats) {
             throw new Error("No format data found for this link.");
@@ -57,13 +66,19 @@ app.get('/api/download', (req, res) => {
     const safeTitle = (title || 'video').replace(/[^a-zA-Z0-9]/g, '_');
     res.header('Content-Disposition', `attachment; filename="${safeTitle}.mp4"`);
 
-    let ytDlpStream = ytDlpWrap.execStream([
+    let args = [
         url,
         '-f', formatId,
         '--user-agent', USER_AGENT,
         '--no-check-certificates'
-    ]);
+    ];
 
+    // Route download data stream through the proxy if configured
+    if (process.env.PROXY_URL) {
+        args.push('--proxy', process.env.PROXY_URL);
+    }
+
+    let ytDlpStream = ytDlpWrap.execStream(args);
     ytDlpStream.pipe(res);
 
     ytDlpStream.on('error', (err) => {
