@@ -28,7 +28,7 @@
             <p id="statusText" class="text-sm font-medium text-slate-300"></p>
         </div>
     </div>
-        <script>
+    <script>
         async function processDownload(mode) {
             const inputUrl = document.getElementById('urlInput').value.trim();
             const videoBtn = document.getElementById('videoBtn');
@@ -41,12 +41,13 @@
             videoBtn.disabled = true;
             audioBtn.disabled = true;
             statusContainer.classList.remove('hidden');
-            statusText.innerText = "Processing streaming container fields on API cluster...";
+            statusText.innerText = "Routing safely through CORS proxy matrix...";
 
             try {
+                // PROXY FIX: Forces the browser to accept cross-origin requests
+                const proxyPrefix = "https://corsproxy.io?";
                 const targetApi = "https://cobalt.tools";
                 
-                // OFFICIAL SCHEMA MATCHING: Formatted to align exactly with Cobalt production parameters
                 const requestPayload = {
                     url: inputUrl
                 };
@@ -56,11 +57,12 @@
                     requestPayload.audioFormat = 'mp3';
                     requestPayload.audioBitrate = '320';
                 } else {
-                    requestPayload.vQuality = '720'; // Standard high-definition parameter filter
-                    requestPayload.isCodecM4A = true; // Forces standard container compatibility
+                    requestPayload.vQuality = '720'; 
+                    requestPayload.isCodecM4A = true; 
                 }
 
-                const response = await fetch(targetApi, {
+                // Combine the proxy prefix with the actual api target
+                const response = await fetch(proxyPrefix + encodeURIComponent(targetApi), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -70,20 +72,18 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`The download infrastructure returned an unexpected validation code: ${response.status}`);
+                    throw new Error(`The proxy pipeline returned code ${response.status}`);
                 }
 
                 const data = await response.json();
 
-                // Cobalt handles errors by passing an object containing a 'text' element or a specific code
-                if (data.text || data.status == 'error') {
+                if (data.text || data.status === 'error') {
                     throw new Error(data.text || 'The infrastructure cluster rejected processing this media link.');
                 }
 
                 if (data.url) {
-                    statusText.innerText = "Processing complete! Transferring file to browser...";
+                    statusText.innerText = "Processing complete! Transferring file...";
                     
-                    // Create an ephemeral hidden anchor tag element to safely execute the download action
                     const downloadLink = document.createElement('a');
                     downloadLink.href = data.url;
                     downloadLink.target = '_blank';
@@ -92,12 +92,12 @@
                     downloadLink.click();
                     document.body.removeChild(downloadLink);
                 } else {
-                    throw new Error('Valid processing payload generated but media link container was missing.');
+                    throw new Error('Processing payload succeeded but download url was missing.');
                 }
 
             } catch (err) {
                 console.error(err);
-                alert('Downloader Status Notification: ' + err.message + '\n\nTip: Double check that the copied video link is public and still online!');
+                alert('Connection Log Update: ' + err.message + '\n\nTip: Make sure you aren\'t using an aggressive ad-blocker extension that prevents background fetching.');
             } finally {
                 videoBtn.disabled = false;
                 audioBtn.disabled = false;
