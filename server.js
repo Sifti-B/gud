@@ -6,8 +6,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Point directly to the stable system-wide Linux path we built in the Dockerfile
 const ytDlpWrap = new YTDlpWrap('/usr/local/bin/yt-dlp');
+
+// Common browser disguise string to bypass automated bot detection walls
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 // Endpoint 1: Fetch metadata qualities
 app.post('/api/info', async (req, res) => {
@@ -15,7 +17,12 @@ app.post('/api/info', async (req, res) => {
     if (!url) return res.status(400).json({ error: 'URL is required' });
 
     try {
-        let metadata = await ytDlpWrap.getVideoInfo(url);
+        // Pass system args to pretend we are an organic desktop browser session
+        let metadata = await ytDlpWrap.getVideoInfo([
+            url,
+            '--user-agent', USER_AGENT,
+            '--no-check-certificates'
+        ]);
         
         if (!metadata || !metadata.formats) {
             throw new Error("No format data found for this link.");
@@ -52,7 +59,9 @@ app.get('/api/download', (req, res) => {
 
     let ytDlpStream = ytDlpWrap.execStream([
         url,
-        '-f', formatId
+        '-f', formatId,
+        '--user-agent', USER_AGENT,
+        '--no-check-certificates'
     ]);
 
     ytDlpStream.pipe(res);
