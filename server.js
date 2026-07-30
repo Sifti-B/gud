@@ -3,23 +3,35 @@ const cors = require('cors');
 const YTDlpWrap = require('yt-dlp-wrap').default;
 const path = require('path');
 const fs = require('fs');
+const { execSync } = require('child_process');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Look for yt-dlp binary in the project folder
 const ytDlpPath = path.join(__dirname, 'yt-dlp');
 let ytDlpWrap;
 
-// Initialize yt-dlp binary
+// Upgraded Initializer to handle Linux Server permissions
 async function initYtdlp() {
-    if (!fs.existsSync(ytDlpPath)) {
-        console.log('Downloading latest yt-dlp binary...');
-        await YTDlpWrap.downloadFromGithub(ytDlpPath);
-        console.log('yt-dlp downloaded successfully!');
+    try {
+        if (!fs.existsSync(ytDlpPath)) {
+            console.log('Downloading latest yt-dlp binary from GitHub...');
+            await YTDlpWrap.downloadFromGithub(ytDlpPath);
+            console.log('yt-dlp downloaded successfully!');
+        }
+        
+        // CRUCIAL FOR LINUX/RENDER: Give the file execution permissions
+        if (process.platform !== 'win32') {
+            console.log('Applying Linux execution permissions to yt-dlp...');
+            execSync(`chmod +x "${ytDlpPath}"`);
+        }
+
+        ytDlpWrap = new YTDlpWrap(ytDlpPath);
+        console.log('yt-dlp engine successfully armed and ready.');
+    } catch (error) {
+        console.error('Initialization error during core setup:', error.message);
     }
-    ytDlpWrap = new YTDlpWrap(ytDlpPath);
 }
 initYtdlp();
 
@@ -27,11 +39,15 @@ initYtdlp();
 app.post('/api/info', async (req, res) => {
     const { url } = req.body;
     if (!url) return res.status(400).json({ error: 'URL is required' });
+    if (!ytDlpWrap) return res.status(503).json({ error: 'Server is still booting up the engine. Please refresh in 10 seconds.' });
 
     try {
         let metadata = await ytDlpWrap.getVideoInfo(url);
         
-        // Filter out useful formats (MP4/WebM with distinct resolutions)
+        if (!metadata || !metadata.formats) {
+            throw new Error("No format data found for this link.");
+        }
+
         let formats = metadata.formats
             .filter(f => f.vcodec !== 'none' || f.acodec !== 'none')
             .map(f => ({
@@ -48,6 +64,7 @@ app.post('/api/info', async (req, res) => {
             formats: formats
         });
     } catch (err) {
+        console.error('Metadata Fetch Error:', err.message);
         res.status(500).json({ error: 'Failed to fetch video metadata', details: err.message });
     }
 });
@@ -58,10 +75,8 @@ app.get('/api/download', (req, res) => {
     if (!url || !formatId) return res.status(400).send('Missing parameters');
 
     const safeTitle = (title || 'video').replace(/[^a-zA-Z0-9]/g, '_');
-    
     res.header('Content-Disposition', `attachment; filename="${safeTitle}.mp4"`);
 
-    // Stream the data directly from yt-dlp directly to the browser response
     let ytDlpStream = ytDlpWrap.execStream([
         url,
         '-f', formatId
@@ -74,7 +89,6 @@ app.get('/api/download', (req, res) => {
     });
 });
 
-// Serve frontend interface
 app.use(express.static('public'));
 
 const PORT = process.env.PORT || 3000;
