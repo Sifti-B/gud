@@ -46,21 +46,36 @@ def get_video_info(request: UrlRequest):
         if not info or 'formats' not in info:
             raise HTTPException(status_code=400, detail="Could not extract video formats.")
             
-        # Parse available resolutions cleanly
+        # Parse available resolutions cleanly with safety fallbacks
         formats_list = []
-        for f in info['formats']:
-            if f.get('vcodec') != 'none' or f.get('acodec') != 'none':
-                # Determine resolution display string
-                res = f.get('resolution') or f"{f.get('width','?')}x{f.get('height','?')}"
-                if f.get('vcodec') == 'none':
+        raw_formats = info.get('formats', [])
+        
+        for f in raw_formats:
+            # Gather stream data safely using default string configurations
+            vcodec = f.get('vcodec', 'none')
+            acodec = f.get('acodec', 'none')
+            
+            # Filter out non-media components safely
+            if vcodec != 'none' or acodec != 'none':
+                res = f.get('resolution') or f"{f.get('width','?') or '?'}x{f.get('height','?') or '?'}"
+                if vcodec == 'none':
                     res = "Audio Only"
                     
                 formats_list.append({
-                    "formatId": f.get('format_id'),
-                    "resolution": res,
-                    "ext": f.get('ext', 'mp4'),
-                    "note": f.get('format_note', '')
+                    "formatId": str(f.get('format_id', '')),
+                    "resolution": str(res),
+                    "ext": str(f.get('ext', 'mp4')),
+                    "note": str(f.get('format_note', ''))
                 })
+                
+        # Safety net: If individual formats are blocked, inject a standard master profile
+        if not formats_list:
+            formats_list.append({
+                "formatId": "best",
+                "resolution": "Standard / Best Available Quality",
+                "ext": "mp4",
+                "note": "Default Streaming Track"
+            })
                 
         return {
             "title": info.get('title', 'Video'),
@@ -68,6 +83,7 @@ def get_video_info(request: UrlRequest):
             "duration": info.get('duration_string', '0:00'),
             "formats": formats_list
         }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch metadata: {str(e)}")
 
