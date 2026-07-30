@@ -112,7 +112,6 @@ def download_media(url: str, formatId: str, title: str):
     output_path = os.path.join("/tmp", output_filename) # Use temporary folder
 
     # Step 1: Try downloading the exact format requested by the user dropdown list
-    # Step 1: Try downloading the exact format requested by the user dropdown list
     ydl_opts = {
         'format': f"{formatId}+bestaudio/best/best",
         'merge_output_format': 'mp4',
