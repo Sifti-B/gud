@@ -40,9 +40,6 @@
     </div>
 
     <script>
-        let currentUrl = '';
-        let currentTitle = '';
-
         async function fetchVideoInfo() {
             const url = document.getElementById('urlInput').value;
             const btn = document.getElementById('fetchBtn');
@@ -57,41 +54,54 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ url })
                 });
+                
+                if (!response.ok) {
+                    const errorDetail = await response.json();
+                    throw new Error(errorDetail.detail || 'Server encountered an issue.');
+                }
+                
                 const data = await response.json();
                 
-                if(data.error) throw new Error(data.error);
+                // Safe extraction fallback if payload returns slightly shifted keys
+                const formats = data.formats || data.Formats || [];
+                const title = data.title || 'Video Title';
+                const thumbnail = data.thumbnail || '';
+                const duration = data.duration || '0:00';
 
                 currentUrl = url;
-                currentTitle = data.title;
+                currentTitle = title;
 
-                document.getElementById('thumb').src = data.thumbnail;
-                document.getElementById('videoTitle').innerText = data.title;
-                document.getElementById('duration').innerText = `Duration: ${data.duration}`;
+                document.getElementById('thumb').src = thumbnail;
+                document.getElementById('videoTitle').innerText = title;
+                document.getElementById('duration').innerText = `Duration: ${duration}`;
 
                 const select = document.getElementById('formatSelect');
                 select.innerHTML = '';
-                data.formats.forEach(f => {
+                
+                if (formats.length === 0) {
+                    // Fallback option if individual resolution matrix extraction fails
                     const opt = document.createElement('option');
-                    opt.value = f.formatId;
-                    opt.innerText = `${f.resolution} (${f.ext}) - ${f.note}`;
+                    opt.value = 'best';
+                    opt.innerText = 'Standard / Best Quality Available';
                     select.appendChild(opt);
-                });
+                } else {
+                    formats.forEach(f => {
+                        const opt = document.createElement('option');
+                        opt.value = f.formatId || 'best';
+                        opt.innerText = `${f.resolution || 'Default'} (${f.ext || 'mp4'}) - ${f.note || ''}`;
+                        select.appendChild(opt);
+                    });
+                }
 
                 document.getElementById('resultContainer').classList.remove('hidden');
             } catch (err) {
-                           console.error(err);
-                           alert('Server Response: ' + err.message);
-                } finally {
+                alert('Connection Notification: ' + err.message);
+            } finally {
                 btn.disabled = false;
                 btn.innerText = 'Fetch Available Formats';
             }
         }
 
-        function startDownload() {
-            const formatId = document.getElementById('formatSelect').value;
-            const downloadUrl = `/api/download?url=${encodeURIComponent(currentUrl)}&formatId=${formatId}&title=${encodeURIComponent(currentTitle)}`;
-            window.location.href = downloadUrl;
-        }
     </script>
 </body>
 </html>
