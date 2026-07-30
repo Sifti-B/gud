@@ -45,21 +45,20 @@
             statusText.innerText = "Processing media parameters through secure CORS tunnel...";
 
             try {
-                // Secure free CORS proxy prefix layer
-                const proxyPrefix = "https://corsproxy.io/?";
-                const targetApi = "https://my-private-api-zrig.onrender.com/";
+                // Point directly to your active live Render backend API instance
+                const targetApi = "https://my-private-api-zrig.onrender.com"; // <-- ENSURE THIS IS YOUR ACTUAL RENDER URL!
                 
-                // REWRITTEN PAYLOAD SCHEMA: Maps exactly to Cobalt's production requirements
+                // Formatted payload data properties mapping exactly to Cobalt 10 specification guidelines
                 const requestPayload = {
                     url: inputUrl,
-                    videoQuality: '720',               // String representation of resolution height
-                    downloadMode: mode === 'audio' ? 'audio' : 'video', // 'video' or 'audio'
-                    audioFormat: 'mp3',                // Default audio fallback container
-                    audioBitrate: '320'                // Premium audio bitrate allocation
+                    videoQuality: '720',               
+                    downloadMode: mode === 'audio' ? 'audio' : 'video', 
+                    audioFormat: 'mp3',                
+                    audioBitrate: '320'                
                 };
 
-                // Fetch data cleanly by encoding the combined target address
-                const response = await fetch(proxyPrefix + encodeURIComponent(targetApi), {
+                // FIXED FETCH PIPELINE: Send request straight to your API without the corsproxy prefix
+                const response = await fetch(targetApi, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -69,12 +68,12 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`The proxy pipeline returned code ${response.status}`);
+                    throw new Error(`The private server returned an unexpected validation code: ${response.status}`);
                 }
 
                 const data = await response.json();
 
-                // If the engine encounters a media exception, handle it safely
+                // Handle structural error codes safely
                 if (data.status === 'error' || data.text) {
                     throw new Error(data.text || 'The infrastructure cluster rejected processing this media link.');
                 }
@@ -82,7 +81,6 @@
                 if (data.url) {
                     statusText.innerText = "Processing complete! Transferring file...";
                     
-                    // Create a hidden anchor tab element to safely execute the browser download action
                     const downloadLink = document.createElement('a');
                     downloadLink.href = data.url;
                     downloadLink.target = '_blank';
