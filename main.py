@@ -99,8 +99,6 @@ def get_video_info(request: UrlRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Extractor message: {str(e)}")
 
-
-
 @app.get("/api/download")
 def download_media(url: str, formatId: str, title: str):
     """Endpoint 2: Downloads requested format and streams it directly to browser."""
