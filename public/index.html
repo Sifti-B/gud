@@ -85,12 +85,13 @@
                     opt.innerText = 'Standard / Best Quality Available';
                     select.appendChild(opt);
                 } else {
-                    formats.forEach(f => {
+                        formats.forEach(f => {
                         const opt = document.createElement('option');
                         opt.value = f.formatId || 'best';
                         opt.innerText = `${f.resolution || 'Default'} (${f.ext || 'mp4'}) - ${f.note || ''}`;
                         select.appendChild(opt);
                     });
+
                 }
 
                 document.getElementById('resultContainer').classList.remove('hidden');
