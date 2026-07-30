@@ -109,12 +109,11 @@ def download_media(url: str, formatId: str, title: str):
     """Endpoint 2: Downloads requested format and streams it directly to browser."""
     clean_title = safe_name(title or "video")
     output_filename = f"{clean_title}.mp4"
-    output_path = os.path.join("/tmp", output_filename) # Use temporary folder
-
-        # Set the video format string option with standard slash fallbacks
-    format_selector = f"{formatId}+bestaudio/bestvideo+bestaudio/best"
     
-    # If the user selected an option that says 'Audio Only' or custom audio codes
+    # Set the primary video format configuration
+    format_selector = f"{formatId}+bestaudio/best"
+    
+    # If the user selected an option that says 'Audio Only', override format parameter
     if formatId == "Audio Only" or "audio" in formatId.lower():
         format_selector = 'bestaudio/best'
         output_filename = f"{clean_title}.mp3"
@@ -129,26 +128,33 @@ def download_media(url: str, formatId: str, title: str):
         'nocheckcertificate': True
     }
 
-
-
     if os.path.exists(COOKIES_PATH):
         ydl_opts['cookiefile'] = COOKIES_PATH
 
-       try:
+    try:
+        # Step 1: Try downloading the exact format requested by the user dropdown list
         with YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
     except Exception as first_error:
-        print(f"Primary format download failed, trying robust safety fallback... Error: {first_error}")
+        print(f"Primary format download failed, trying robust fallback... Error: {first_error}")
         
-        # Step 2: IRONCLAD FALLBACK - Reset parameters and fetch pre-merged absolute best available quality
-        ydl_opts['format'] = 'best'
+        # Step 2: SECURE FALLBACK - If track combining fails, ask yt-dlp to grab pre-merged best stream
+        ydl_opts['format'] = 'bestvideo+bestaudio/best'
         try:
             with YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
-        except Exception as fallback_error:
-            raise HTTPException(status_code=500, detail=f"Download execution error: {str(fallback_error)}")
+        except Exception as second_error:
+            print(f"Combined fallback failed, trying simple single file capture... Error: {second_error}")
             
-    # Locate the final processed file in the temporary folder
+            # Step 3: LAST RESORT FALLBACK - Pure simple video profile capture
+            ydl_opts['format'] = 'best'
+            try:
+                with YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([url])
+            except Exception as final_error:
+                raise HTTPException(status_code=500, detail=f"Download execution error: {str(final_error)}")
+            
+    # Locate the final processed file inside the temporary server folder
     actual_file = None
     for ext in ['mp4', 'mkv', 'webm', 'mp3', 'm4a']:
         check_path = os.path.join("/tmp", f"{clean_title}.{ext}")
