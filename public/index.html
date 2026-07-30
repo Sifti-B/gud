@@ -79,8 +79,9 @@
 
                 document.getElementById('resultContainer').classList.remove('hidden');
             } catch (err) {
-                alert('Error loading formats: ' + err.message);
-            } finally {
+    console.error(err);
+    alert('Server Response: ' + err.message);
+} finally {
                 btn.disabled = false;
                 btn.innerText = 'Fetch Available Formats';
             }
