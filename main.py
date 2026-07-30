@@ -34,8 +34,10 @@ def get_video_info(request: UrlRequest):
         'quiet': True,
         'no_warnings': True,
         'http_headers': {'User-Agent': USER_AGENT},
-        'nocheckcertificate': True
+        'nocheckcertificate': True,
+        'cookiefile': 'cookies.txt'
     }
+
     
     try:
         with YoutubeDL(ydl_opts) as ydl:
@@ -83,8 +85,10 @@ def download_media(url: str, formatId: str, title: str):
         'quiet': True,
         'no_warnings': True,
         'http_headers': {'User-Agent': USER_AGENT},
-        'nocheckcertificate': True
+        'nocheckcertificate': True,
+        'cookiefile': 'cookies.txt'
     }
+
 
     try:
         # Download file to temporary directory
