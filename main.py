@@ -114,7 +114,7 @@ def download_media(url: str, formatId: str, title: str):
     # Step 1: Try downloading the exact format requested by the user dropdown list
     # Step 1: Try downloading the exact format requested by the user dropdown list
     ydl_opts = {
-        'format': f"{formatId}+bestaudio/best,bestvideo+bestaudio/best",
+        'format': f"{formatId}+bestaudio/best/best",
         'merge_output_format': 'mp4',
         'outtmpl': os.path.join("/tmp", f"{clean_title}.%(ext)s"),
         'quiet': True,
