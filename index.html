@@ -28,7 +28,7 @@
             <p id="statusText" class="text-sm font-medium text-slate-300"></p>
         </div>
     </div>
-             <script>
+    <script>
         async function processDownload(mode) {
             const inputUrl = document.getElementById('urlInput').value.trim();
             const videoBtn = document.getElementById('videoBtn');
@@ -41,16 +41,15 @@
             videoBtn.disabled = true;
             audioBtn.disabled = true;
             statusContainer.classList.remove('hidden');
-            statusText.innerText = "Processing streaming container parameters directly through your API instance...";
+            statusText.innerText = "Transmitting minimalist download request to private server...";
 
             try {
-                // REPLACE THIS WITH YOUR ACTUAL LIVE COBALT RENDER LINK!
-                const targetApi = "https://my-private-api-zrig.onrender.com"; 
+                // Ensure this matches your exact live Render endpoint app URL!
+                const targetApi = "https://onrender.com"; 
                 
-                // LEAN PAYLOAD LOGIC: Drops format tags to allow the engine to extract media without schema errors
+                // MULTI-LAYER COMPATIBILITY PAYLOAD: Drops custom properties to bypass 400 validation locks
                 const requestPayload = {
                     url: inputUrl,
-                    videoQuality: '720', // Standard high-definition container fallback
                     downloadMode: mode === 'audio' ? 'audio' : 'video'
                 };
 
@@ -69,6 +68,7 @@
 
                 const data = await response.json();
 
+                // If Cobalt passes an explicit server notification error, present it directly
                 if (data.status === 'error' || data.text) {
                     throw new Error(data.text || 'The infrastructure cluster rejected processing this media link.');
                 }
@@ -84,12 +84,12 @@
                     downloadLink.click();
                     document.body.removeChild(downloadLink);
                 } else {
-                    throw new Error('Valid processing payload generated but media link container was missing.');
+                    throw new Error('Valid processing payload generated but download URL was missing.');
                 }
 
             } catch (err) {
                 console.error(err);
-                alert('Downloader Feedback Log: ' + err.message + '\n\nTip: If you see old text, please clear your browser history or use Incognito mode!');
+                alert('Downloader Feedback Log: ' + err.message);
             } finally {
                 videoBtn.disabled = false;
                 audioBtn.disabled = false;
@@ -97,6 +97,7 @@
             }
         }
     </script>
+
 
 
 </body>
